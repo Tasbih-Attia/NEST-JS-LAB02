@@ -1,23 +1,23 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { OrdersModule } from './orders/orders.module';
-
-
+import { User } from './users/user';
+import { Product } from './products/product';
+import { Order } from './orders/order';
+import { AuthModule } from './auth/auth.module';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: 'localhost',
       port: 5432,
-      username: 'postgres',      
-      password: 'tasbih',      
-      database: 'techxpress',    
-      autoLoadEntities: true,
-      synchronize: true,
+      username: 'postgres', 
+      password: 'tasbih', 
+      database: 'techxpress',
+      entities: [User, Product, Order],
+      synchronize: false,
     }),
-    OrdersModule,
+    TypeOrmModule.forFeature([User, Product, Order]),
+    AuthModule,
   ],
   
 })

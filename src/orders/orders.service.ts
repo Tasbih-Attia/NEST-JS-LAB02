@@ -1,55 +1,96 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Order } from './order/order';
-import { PaymentMethod } from './order/order';
 import { Repository } from 'typeorm';
+import { Order, PaymentMethod } from './order';
+import { Product } from '../products/product';
+import { User } from '../users/user';
 import { CreateOrderDto } from './dto/orders/dto/create-order.dto/create-order.dto';
-import { UpdateOrderDto } from './dto/orders/dto/update-order.dto/update-order.dto';
-import { NotFoundException } from '@nestjs/common';
-
-
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
+    private orderRepo: Repository<Order>,
+
+    @InjectRepository(Product)
+    private productRepo: Repository<Product>,
+
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
   ) {}
 
-  async getAll(clientId?: number, paymentMethod?: PaymentMethod): Promise<Order[]> {
-    const query = this.orderRepository.createQueryBuilder('order');
+  async createOrder(data: {
+    amount: number;
+    longitude: number;
+    latitude: number;
+    clientId: number;
+    paymentMethod: 'Cash' | 'Visa';
+    productIds: number[];
+  }) {
+    // جلب العميل
+    const user = await this.userRepo.findOne({
+      where: { id: data.clientId }, // تأكدي إن id فعلاً number
+    });
+    if (!user) throw new NotFoundException('User not found');
 
-    if (clientId) {
-      query.andWhere('order.clientId = :clientId', { clientId });
-    }
+    // جلب المنتجات
+    const products = await this.productRepo.findByIds(data.productIds);
 
-    if (paymentMethod) {
-      query.andWhere('order.paymentMethod = :paymentMethod', { paymentMethod });
-    }
+    // إنشاء الطلب
+    const order = this.orderRepo.create({
+      amount: data.amount,
+      longitude: data.longitude,
+      latitude: data.latitude,
+      client: user,
+      products: products,
+      paymentMethod:
+        data.paymentMethod === 'Cash'
+          ? PaymentMethod.CASH
+          : PaymentMethod.VISA,
+    });
 
-    return query.getMany();
+    return this.orderRepo.save(order);
   }
 
-  async getById(id: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({ where: { id } });
+  async getAll() {
+  return this.orderRepo.find({
+    relations: ['client', 'products'],
+  });
+}
+
+  async getOrderDetails(id: number) {
+    const order = await this.orderRepo.findOne({
+      where: { id: id.toString() },
+      relations: ['client', 'products'],
+    });
+
     if (!order) throw new NotFoundException('Order not found');
     return order;
   }
 
-  async create(dto: CreateOrderDto): Promise<Order> {
-    const newOrder = this.orderRepository.create(dto);
-    return this.orderRepository.save(newOrder);
-  }
 
-  async update(id: string, dto: UpdateOrderDto): Promise<Order> {
-    const order = await this.getById(id);
-    const updated = Object.assign(order, dto);
-    return this.orderRepository.save(updated);
-  }
+  async createOrderWithUser(
+  userId: number,
+  data: CreateOrderDto,
+) {
+  const user = await this.userRepo.findOne({ where: { id: userId } });
+  if (!user) throw new NotFoundException('User not found');
 
-  async delete(id: string): Promise<void> {
-    const result = await this.orderRepository.delete(id);
-    if (result.affected === 0) throw new NotFoundException('Order not found');
-  }
-  
+  const products = await this.productRepo.findByIds(data.productIds);
+
+  const order = this.orderRepo.create({
+    amount: data.amount,
+    longitude: data.longitude,
+    latitude: data.latitude,
+    client: user,
+    products,
+    paymentMethod:
+      data.paymentMethod === 'Cash'
+        ? PaymentMethod.CASH
+        : PaymentMethod.VISA,
+  });
+
+  return this.orderRepo.save(order);
+}
+
 }

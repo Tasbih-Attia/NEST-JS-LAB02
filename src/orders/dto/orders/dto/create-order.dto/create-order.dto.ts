@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsNumber } from 'class-validator';
-import { PaymentMethod } from 'src/orders/order/order';
+import { PaymentMethod } from 'src/orders/order';
 
 export class CreateOrderDto {
   @IsNumber()
@@ -16,5 +16,9 @@ export class CreateOrderDto {
 
   @IsEnum(PaymentMethod)
   paymentMethod: PaymentMethod;
+
+
+  @IsNumber()
+  productIds: number[];
 }
 

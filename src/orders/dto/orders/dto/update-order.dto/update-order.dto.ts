@@ -1,5 +1,5 @@
 import { IsEnum, IsNumber, IsOptional } from 'class-validator';
-import { PaymentMethod } from 'src/orders/order/order';
+import { PaymentMethod } from 'src/orders/order';
 
 export class UpdateOrderDto {
   @IsOptional()
